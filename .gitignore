@@ -1,0 +1,13 @@
+# Ignore node_modules directories in the project
+
+# Aggregator service
+aggregator/node_modules/
+
+# API Gateway service
+api-gateway/node_modules/
+
+# Product Service
+microservices/product-service/node_modules/
+
+# User Service
+microservices/user-service/node_modules/
