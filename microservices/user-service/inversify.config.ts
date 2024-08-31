@@ -11,8 +11,6 @@ import { UserFactory } from "./domain/user/user-factory";
 import { UserRoleFactory } from "./domain/user-role/user-role-factory";
 import { RoleFactory } from "./domain/role/role-factory";
 import { UserServiceHandler } from "./application/user";
-import { ApplicationStorage } from "./infrastructure/application-storage";
-import Authorize from "./infrastructure/authorize";
 import { MessageListener } from "./message-listener";
 
 

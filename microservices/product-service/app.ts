@@ -1,5 +1,5 @@
+import container from './inversify.config';
 import { MessageListener } from './message-listener';
-import container from './infrastructure/inversify.config';
 import { TYPES } from './types';
 import { connectDB } from './utils/db';
 

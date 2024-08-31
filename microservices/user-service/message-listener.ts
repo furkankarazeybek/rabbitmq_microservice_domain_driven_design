@@ -23,7 +23,12 @@ export class MessageListener {
     const queues = [
       { name: 'user.getUserList', handler: this.handleUserList.bind(this) },
       { name: 'user.getRoleList', handler: this.handleRoleList.bind(this) },
-      { name: 'user.addUser', handler: this.handleAddUser.bind(this) }
+      { name: 'user.addUser', handler: this.handleAddUser.bind(this) },
+      { name: 'user.loginUser', handler: this.handleLoginUser.bind(this) },
+
+      { name: 'user.deleteUser', handler: this.handleDeleteUser.bind(this) }
+
+
 
     ];
 
@@ -67,6 +72,8 @@ export class MessageListener {
       correlationId,
     });
   }
+
+
 
   private async handleRoleList(msg: amqp.ConsumeMessage) {
     const parsedMessage = JSON.parse(msg.content.toString());
@@ -112,4 +119,60 @@ export class MessageListener {
       correlationId,
     });
   }
+
+  private async handleDeleteUser(msg: amqp.ConsumeMessage) {
+    const parsedMessage = JSON.parse(msg.content.toString());
+    const correlationId = parsedMessage.correlationId;
+
+    const request = parsedMessage.msgContent.request;
+    parsedMessage.routeIndex++;
+
+
+    await this.userServiceHandler.deleteUser(request);
+
+    const message = {
+      correlationId: parsedMessage.correlationId,
+      param: parsedMessage.param,
+      msgContent: parsedMessage.msgContent,
+      routeIndex: parsedMessage.routeIndex,
+      resultStack: parsedMessage.resultStack,
+      request: request 
+    };
+
+    this.channel.sendToQueue("aggregator", Buffer.from(JSON.stringify(message)), {
+      correlationId,
+    });
+  }
+
+
+  private async handleLoginUser(msg: amqp.ConsumeMessage) {
+    const parsedMessage = JSON.parse(msg.content.toString());
+    const correlationId = parsedMessage.correlationId;
+
+    const request = parsedMessage.msgContent.request;
+    parsedMessage.routeIndex++;
+
+
+    await this.userServiceHandler.loginUser(request);
+
+    const message = {
+      correlationId: parsedMessage.correlationId,
+      param: parsedMessage.param,
+      msgContent: parsedMessage.msgContent,
+      routeIndex: parsedMessage.routeIndex,
+      resultStack: parsedMessage.resultStack,
+      request: request 
+    };
+
+    this.channel.sendToQueue("aggregator", Buffer.from(JSON.stringify(message)), {
+      correlationId,
+    });
+  }
+
+
+
+
+  
+
+  
 }

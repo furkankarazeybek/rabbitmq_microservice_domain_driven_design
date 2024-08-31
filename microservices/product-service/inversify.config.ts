@@ -1,14 +1,15 @@
 import "reflect-metadata";
 import { Container } from "inversify";
-import { TYPES } from "../types";
-import { ProductService } from "../domain/product/product-service";
-import { ProductCategoryService } from "../domain/product-category/product-category-service";
-import { ProductRepository } from "../domain/product/product-repository";
-import { ProductCategoryRepository } from "../domain/product-category/product-category-repository";
-import { ProductFactory } from "../domain/product/product-factory";
-import { ProductCategoryFactory } from "../domain/product-category/product-category-factory";
-import { ProductServiceHandler } from "../application/product";
-import { MessageListener } from "../message-listener";
+import { ProductService } from "./domain/product/product-service";
+import { TYPES } from "./types";
+import { ProductCategoryService } from "./domain/product-category/product-category-service";
+import { ProductRepository } from "./domain/product/product-repository";
+import { ProductCategoryRepository } from "./domain/product-category/product-category-repository";
+import { ProductFactory } from "./domain/product/product-factory";
+import { ProductCategoryFactory } from "./domain/product-category/product-category-factory";
+import { ProductServiceHandler } from "./application/product";
+import { MessageListener } from "./message-listener";
+
 
 
 const container = new Container();

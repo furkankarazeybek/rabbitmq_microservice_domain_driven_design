@@ -1,94 +1,71 @@
+import { inject, injectable } from 'inversify';
 import amqp from 'amqplib';
 import { ProductServiceHandler } from './application/product';
-import { inject, injectable } from 'inversify';
 import { TYPES } from './types';
 
 const RABBITMQ_URL = 'amqp://localhost';
 
+interface QueueConfig {
+  action: keyof ProductServiceHandler;
+  resultStackKey: string;
+}
+
 @injectable()
 export class MessageListener {
-    private channel!: amqp.Channel;
-    private productServiceHandler: ProductServiceHandler;
-  
-    constructor(
-      @inject(TYPES.ProductServiceHandler) productServiceHandler: ProductServiceHandler
-    ) {
-      this.productServiceHandler = productServiceHandler;
-    }
-  
+  private channel!: amqp.Channel;
+  private productServiceHandler: ProductServiceHandler;
+
+  constructor(
+    @inject(TYPES.ProductServiceHandler) productServiceHandler: ProductServiceHandler
+  ) {
+    this.productServiceHandler = productServiceHandler;
+  }
 
   async start() {
-    console.log("Message listener started");
     const connection = await amqp.connect(RABBITMQ_URL);
-    this.channel = await connection.createChannel();  
+    this.channel = await connection.createChannel();
 
-    await this.channel.assertQueue('product.getProductList', { durable: false });
-    await this.channel.assertQueue('product.getProductCategoriesList', { durable: false });
+    const queues: QueueConfig[] = [
+      { action: 'getProductList', resultStackKey: 'getProductListResult' },
+      { action: 'getProductCategoriesList', resultStackKey: 'getProductCategoriesResult' },
+    ];
 
-    this.channel.consume('product.getProductList', async (msg) => {
-        console.log("GETPRODUCTLIST KUYRUĞU DİNLENİYOR");
-      if (msg !== null) {
-        try {
-          const parsedMessage = JSON.parse(msg.content.toString());
-          console.log("Received message for product.getProductList:", parsedMessage);
+    try {
+      for (const queue of queues) {
+        await this.channel.assertQueue(`product.${queue.action}`, { durable: false });
 
-          const correlationId = parsedMessage.correlationId;
-          console.log("corelation ıd", correlationId);
-
-          const products = await this.productServiceHandler.getProductList();
-          console.log("Products list from getProductList:", products);
-
-          parsedMessage.routeIndex++;
-
-          const response = {
-            ...parsedMessage,
-            resultStack: {
-              getProductListResult: products
-            },
-            routeIndex: parsedMessage.routeIndex
-          };
-
-          this.channel.sendToQueue("aggregator", Buffer.from(JSON.stringify(response)), {
-            correlationId,
-          });
-
-          this.channel.ack(msg);
-        } catch (error) {
-          console.error("Error processing message:", error);
-        }
+        this.channel.consume(`product.${queue.action}`, async (msg) => {
+          if (msg !== null) {
+            await this.handleMessage(queue, msg);
+            this.channel.ack(msg);
+          }
+        });
       }
-    });
+    } catch (error) {
+      console.error('Error starting RabbitMQ connection:', error);
+    }
+  }
 
-    this.channel.consume('product.getProductCategoriesList', async (msg) => {
-      if (msg !== null) {
-        try {
-          const parsedMessage = JSON.parse(msg.content.toString());
-          console.log("Received message for product.getProductCategoriesList:", parsedMessage);
+  private async handleMessage(queue: QueueConfig, msg: amqp.ConsumeMessage) {
+    const parsedMessage = JSON.parse(msg.content.toString());
+    const correlationId = parsedMessage.correlationId;
 
-          const correlationId = msg.properties.correlationId;
+    console.log(" REQUEST", parsedMessage.msgContent.request);
+    const actionResult = await this.productServiceHandler[queue.action](parsedMessage.msgContent.request || parsedMessage.resultStack);
+    parsedMessage.resultStack[queue.resultStackKey] = actionResult;
+    parsedMessage.routeIndex++;
 
-          const categories = await this.productServiceHandler.getProductCategoriesList();
-          parsedMessage.resultStack = { getProductCategoriesResult: categories };
+    console.log("ACTION RESULT", actionResult);
+    const message = {
+      correlationId,
+      param: parsedMessage.param,
+      msgContent: parsedMessage.msgContent,
+      routeIndex: parsedMessage.routeIndex,
+      resultStack: parsedMessage.resultStack,
+    };
 
-          parsedMessage.routeIndex++;
-
-
-          const response = {
-            ...parsedMessage,
-            resultStack: {
-              getProductCategoriesResult: categories
-            }
-          };
-
-          this.channel.sendToQueue("aggregator", Buffer.from(JSON.stringify(response)), {
-            correlationId,
-          });
-
-          this.channel.ack(msg);
-        } catch (error) {
-          console.error("Error processing message:", error);
-        }
-      }
+    this.channel.sendToQueue("aggregator", Buffer.from(JSON.stringify(message)), {
+      correlationId,
     });
   }
 }
